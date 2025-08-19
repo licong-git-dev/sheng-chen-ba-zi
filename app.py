@@ -1,67 +1,92 @@
-from flask import Flask, request, jsonify, render_template, Response, stream_with_context
-import time
-import json
-from datetime import datetime
+import os
+import dashscope
+from flask import Flask, request, render_template, Response, stream_with_context
+from http import HTTPStatus
 
 app = Flask(__name__)
 
-# --- 模型已被移除 ---
-# 由于 Vercel 无法托管大型 AI 模型，我们将使用固定的占位符数据来模拟模型响应
-# 这样可以让网站前端成功部署并运行起来
+# --- 安全地从环境变量获取API Key ---
+# 在Vercel部署时，我们会把API Key设置为环境变量，这样更安全
+dashscope.api_key = os.getenv("DASHSCOPE_API_KEY", "sk-5a09c47c15614ebd95b6e7bff8ae6979")
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-@app.route('/evaluate', methods=['POST'])
+def generate_stream(prompt):
+    """一个通用的流式生成器函数"""
+    try:
+        responses = dashscope.Generation.call(
+            model='qwen-turbo', # 使用速度最快的qwen-turbo模型
+            prompt=prompt,
+            stream=True, # 开启流式输出
+            result_format='text' # 设置结果格式为纯文本
+        )
+
+        for resp in responses:
+            if resp.status_code == HTTPStatus.OK:
+                yield resp.output.text
+            else:
+                error_message = f"请求错误：code: {resp.code}, message: {resp.message}"
+                print(error_message)
+                yield error_message
+                break
+    except Exception as e:
+        error_message = f"调用API时发生异常: {str(e)}"
+        print(error_message)
+        yield error_message
+
+@app.route('/evaluate_number', methods=['POST'])
 def evaluate_number():
-    """手机号评估的占位符版本"""
-    data = request.get_json()
-    if not data or 'number' not in data:
-        return jsonify({'error': '请求参数错误，需要提供 number 字段'}), 400
+    phone_number = request.form.get('phone_number')
+    if not phone_number:
+        return Response("请输入手机号码", status=400)
 
-    number = data['number']
-    if not isinstance(number, str) or not number.isdigit() or len(number) != 4:
-        return jsonify({'error': '号码必须是4位数字字符串'}), 400
+    prompt = f"""
+你是一位精通东西方数字神秘学、命理学和中华传统文化的趣味解读大师。
+请你从多个角度，用风趣幽默、积极向上的风格，为我分析一下手机号码：{phone_number}。
 
-    # 返回一个固定的、模拟的JSON响应
-    placeholder_result = {
-      "price": "8888元",
-      "level": "吉祥",
-      "suggestion": f"这是一个为手机尾号 {number} 生成的模拟分析。由于AI模型无法在此平台运行，我们返回一个固定的示例结果。真正的运势分析需要将模型部署在专门的服务器上才能实现。"
-    }
-    print(f"返回占位符结果: {placeholder_result}")
-    return jsonify(placeholder_result)
+请围绕以下几点展开，但不要局限于此：
+1.  **数字谐音**：比如8代表发，4代表“四季发财”等，尽量从好的寓意解读。
+2.  **易经卦象**（如果能结合的话）：简单提一下这个号码可能关联的卦象和它积极的寓意。
+3.  **能量磁场**：结合数字能量学的概念，比如天医、延年、生气等，说说这个号码的正向能量。
+4.  **整体评价**：给出一个综合性的、令人愉快的总结。
 
-@app.route('/fortune', methods=['POST'])
-def get_fortune():
-    """生辰八字算命的占位符版本（流式）"""
-    data = request.get_json()
-    if not data or 'birthdate' not in data:
-        return jsonify({'error': '请求参数错误，需要提供 birthdate 字段'}), 400
+**要求**：
+- 全程使用简体中文。
+- 风格要像一个网络上的趣味测试，轻松、好玩，多用积极正面的词语。
+- 内容要原创，每次生成都要不一样。
+- 总字数在200-300字之间。
+- 直接开始分析，不要说“好的”、“当然”等多余的话。
+"""
+    return Response(stream_with_context(generate_stream(prompt)), content_type='text/plain')
 
-    birthdate = data['birthdate']
+@app.route('/fortune_telling', methods=['POST'])
+def fortune_telling():
+    birth_date = request.form.get('birth_date')
+    if not birth_date:
+        return Response("请输入出生日期", status=400)
 
-    def generate_fake_stream():
-        """一个模拟的流式响应生成器"""
-        try:
-            # 验证日期格式
-            datetime.strptime(birthdate, "%Y/%m/%d")
-            
-            yield "data: 正在为您生成分析报告...\n\n"
-            time.sleep(0.5)
-            yield f"data: **用户信息**\n- **生日**: {birthdate}\n\n"
-            time.sleep(0.5)
-            yield "data: **性格分析**\n这是一个模拟的性格分析。由于无法在此平台加载AI模型，我们返回固定的示例内容。\n\n"
-            time.sleep(0.5)
-            yield "data: **运势总结**\n这是一个模拟的运势总结。您未来的事业、财运、健康和感情都需要您继续努力！\n\n"
-            time.sleep(0.5)
-            yield "data: **开运建议**\n保持积极心态，多喝水，常运动！"
-        except ValueError:
-            yield "data: 日期格式不正确或日期无效，请使用 YYYY/MM/DD 格式并确保日期真实存在。"
+    prompt = f"""
+你是一位现代的、积极心理学导向的命理解读师，同时也是一个温暖、善于鼓励的人生导师。
+请根据我提供的公历生日：{birth_date}，为我生成一份专属的“人生能量”解读报告。
 
-    # 使用 Response 对象来创建流式响应
-    return Response(stream_with_context(generate_fake_stream()), mimetype='text/event-stream')
+请围绕以下几个方面，用现代、科学、易于理解的语言进行分析：
+1.  **核心性格特质**：根据星座、生命数字等（你可以虚构一个听起来科学的体系），分析这个人与生俱来的性格优点和潜力。
+2.  **事业能量导向**：分析此人适合在哪些领域发光发热，更容易获得成就感和满足感。
+3.  **人际关系能量**：分析此人在与人交往中的特点和优势。
+4.  **人生幸运提示**：提供一些积极的、可操作的心理学建议，作为Ta的“幸运锦囊”，帮助Ta更好地发挥天赋，吸引好运。
+
+**要求**：
+- 全程使用简体中文。
+- 风格要非常积极、温暖、治愈，多用鼓励性和启发性的语言，像一个专业的心理咨询师在做积极引导。
+- 避免使用任何宿命论、迷信、负面的词汇（如“劫难”、“克夫”等），将一切都解释为“挑战”与“成长的机会”。
+- 内容要原创，每次生成都要不一样。
+- 总字数在300-400字之间。
+- 直接开始解读，不要有任何多余的开场白。
+"""
+    return Response(stream_with_context(generate_stream(prompt)), content_type='text/plain')
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    # 注意：在Vercel上部署时，它会使用自己的方式来运行app，不会执行下面的代码
+    app.run(debug=True)
