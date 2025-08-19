@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红姐数字能量站</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">
+            <svg class="title-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93s3.05-7.44 7-7.93v15.86zm2-15.86c1.03.13 2 .45 2.87.93H13v-.93zM13 7h5.24c.25.31.48.65.68 1H13V7zm0 3h6.74c.08.33.15.66.19 1H13v-1zm0 3h6.93c-.04.34-.11.67-.19 1H13v-1zm0 3h5.87c-.19.35-.41.69-.68 1H13v-1z"></path></svg>
+            红姐数字能量站
+        </h1>
+
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('number')">手机尾号估值</button>
+            <button class="tab-btn" onclick="switchTab('fortune')">生辰八字算命</button>
+        </div>
+
+        <div id="number-evaluation" class="tab-content active">
+            <h2 class="subtitle">寻找5年以上过万手机尾号</h2>
+            <div class="input-group">
+                <label for="number">请输入手机尾号后4位</label>
+                <input type="text" id="number" maxlength="4" placeholder="例如: 1314">
+            </div>
+            <button class="evaluate-btn" onclick="evaluateNumber()">立即评估</button>
+            <div class="result" id="result" style="display: none;">
+                <div class="result-item"><strong>评估价格：</strong><span id="price">-</span></div>
+                <div class="result-item"><strong>等级：</strong><span id="level">-</span></div>
+                <div class="result-item"><strong>建议：</strong><span id="suggestion">-</span></div>
+            </div>
+        </div>
+
+        <div id="fortune-telling" class="tab-content">
+            <h2 class="subtitle">生辰八字算命</h2>
+            <div class="input-group">
+                <label for="birthdate">请选择您的出生年月日</label>
+                <input type="date" id="birthdate">
+            </div>
+            <button class="evaluate-btn" onclick="getFortune()">开始算命</button>
+            <div class="result" id="fortune-result" style="display: none;">
+                <div class="result-item"><strong>命运解读：</strong><span id="fortune-text">-</span></div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

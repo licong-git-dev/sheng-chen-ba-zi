@@ -5,13 +5,15 @@ from flask import Flask, request, render_template, Response, stream_with_context
 from http import HTTPStatus
 import json
 
-# 在程序启动时加载 .env 文件中的环境变量
-load_dotenv()
+# 强制加载项目根目录下的 .env 文件，并覆盖任何已存在的同名系统级环境变量
+# 这能确保我们使用的是项目指定的API Key，而不是外部的无效Key
+load_dotenv(override=True)
 
 app = Flask(__name__)
 
 # --- 安全地从环境变量获取API Key ---
 api_key = os.getenv("DASHSCOPE_API_KEY")
+print(f"Attempting to use API Key: {api_key[:5]}...{api_key[-4:] if api_key else 'None'}")
 if api_key:
     dashscope.api_key = api_key
 else:
@@ -79,7 +81,7 @@ def evaluate():
 
 **输出要求**：
 - **以JSON格式返回**，必须包含 `price`, `level`, `suggestion` 三个字段。
-- **`price` (string)**：给出一个 **3000到8000之间** 的趣味评估价格，必须是整数，并以字符串形式表示。例如 `"4888"` 或 `"6666"`。
+- **`price` (string)**：必须给出一个 **3000到8000之间** 的趣味评估价格，必须是整数，并以字符串形式表示。**严禁总是给出相同的估值**，价格必须根据号码的吉利和稀有程度有显著的区分度。例如，普通号码估值可以是 `"3888"`，而稀有吉祥号（如888, 666）则应该估值更高，如 `"7888"`。
 - **`level` (string)**：根据综合评估，给出号码等级（例如：稀有级、传说级、典藏级）。
 - **`suggestion` (string)**：生成一段200-300字的综合建议，语言要专业、风趣、积极向上，总结该号码的价值和带来的好运。
 - **严格遵守**：直接返回纯JSON对象，不包含任何额外说明或Markdown标记。
@@ -91,7 +93,21 @@ def evaluate():
             result_format='text'
         )
         if response.status_code == HTTPStatus.OK:
-            return Response(response.output.text, content_type='application/json')
+            raw_text = response.output.text
+            # 找到第一个 '{' 和最后一个 '}' 来提取纯净的JSON字符串
+            start_index = raw_text.find('{')
+            end_index = raw_text.rfind('}')
+            
+            if start_index != -1 and end_index != -1 and start_index < end_index:
+                json_str = raw_text[start_index:end_index+1]
+                try:
+                    # 在返回前，先在后端验证一下它是不是一个合法的JSON
+                    json.loads(json_str)
+                    return Response(json_str, content_type='application/json')
+                except json.JSONDecodeError:
+                    return jsonify({'error': 'AI返回了格式错误的JSON，无法解析。'}), 500
+            else:
+                return jsonify({'error': 'AI响应中不包含有效的JSON内容。'}), 500
         else:
             error_msg = f"API Error: Code: {response.code}, Message: {response.message}"
             return jsonify({'error': error_msg}), 500
