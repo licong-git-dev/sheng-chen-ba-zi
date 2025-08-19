@@ -110,3 +110,6 @@ dmypy.json
 
 # Ignore the model folder
 Qwen2.5-0.5B-Instruct/
+
+# Vercel deployment files
+.vercel/
