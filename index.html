@@ -250,18 +250,18 @@
     </div>
     <script>
         function switchTab(tabName) {
-            const tabContents = document.querySelectorAll('.tab-content');
-            const tabButtons = document.querySelectorAll('.tab-btn');
+            // Deactivate all tabs and buttons
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
 
-            tabContents.forEach(content => {
-                content.classList.remove('active');
-            });
-            tabButtons.forEach(button => {
-                button.classList.remove('active');
-            });
+            // Activate the selected tab and button
+            const targetContentId = tabName === 'number' ? 'number-evaluation' : 'fortune-telling';
+            document.getElementById(targetContentId).classList.add('active');
+            document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        }
 
-            document.getElementById(tabName + '-evaluation').classList.add('active');
-            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
         }
 
         async function evaluateNumber() {
@@ -273,8 +273,16 @@
             const suggestionEl = document.getElementById('suggestion');
             const evaluateBtn = document.querySelector('#number-evaluation .evaluate-btn');
 
+            // Clear previous results and errors
+            suggestionEl.style.color = '';
+            priceEl.textContent = '-';
+            levelEl.textContent = '-';
+            suggestionEl.textContent = '-';
+
             if (!number || number.length !== 4 || !/^\d+$/.test(number)) {
-                alert('请输入正确的4位数字！');
+                resultDiv.style.display = 'block';
+                suggestionEl.textContent = '请输入有效的4位数字手机尾号。';
+                suggestionEl.style.color = '#e53935'; // A shade of red
                 return;
             }
 
@@ -285,9 +293,7 @@
             try {
                 const response = await fetch('/evaluate', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ number: number }),
                 });
 
@@ -298,14 +304,16 @@
 
                 const result = await response.json();
 
-                priceEl.textContent = result.price;
+                priceEl.textContent = `¥ ${result.price}`;
                 levelEl.textContent = result.level;
                 suggestionEl.textContent = result.suggestion;
                 resultDiv.style.display = 'block';
 
             } catch (error) {
                 console.error('评估出错:', error);
-                alert('评估服务出错，请稍后再试。');
+                resultDiv.style.display = 'block';
+                suggestionEl.textContent = '评估服务暂时不可用，请稍后再试。';
+                suggestionEl.style.color = '#e53935';
             } finally {
                 evaluateBtn.textContent = '立即评估';
                 evaluateBtn.disabled = false;
@@ -324,21 +332,20 @@
             const fortuneBtn = document.querySelector('#fortune-telling .evaluate-btn');
 
             if (!birthdate) {
-                alert('请选择您的出生年月日！');
+                fortuneResultDiv.style.display = 'block';
+                fortuneTextEl.innerHTML = '<span style="color: #e53935;">请先选择您的出生年月日。</span>';
                 return;
             }
 
             fortuneBtn.textContent = '算命中...';
             fortuneBtn.disabled = true;
             fortuneResultDiv.style.display = 'block';
-            fortuneTextEl.innerHTML = '正在为您解读，请稍候...';
+            fortuneTextEl.innerHTML = ''; // Clear previous results
 
             try {
                 const response = await fetch('/fortune', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ birthdate: birthdate }),
                 });
 
@@ -348,21 +355,26 @@
 
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
-                let resultText = '';
+                const typingSpeed = 20; // Adjusted speed for better readability
 
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) {
-                        break;
-                    }
+                    if (done) break;
+                    
                     const chunk = decoder.decode(value, { stream: true });
-                    resultText += chunk;
-                    fortuneTextEl.innerHTML = resultText.replace(/\n/g, '<br>');
+                    for (const char of chunk) {
+                        if (char === '\n') {
+                            fortuneTextEl.innerHTML += '<br>';
+                        } else {
+                            fortuneTextEl.innerHTML += char;
+                        }
+                        await sleep(typingSpeed);
+                    }
                 }
 
             } catch (error) {
                 console.error('算命出错:', error);
-                fortuneTextEl.textContent = '算命服务出错，请稍后再试。';
+                fortuneTextEl.innerHTML = '<span style="color: #e53935;">服务暂时迷失在星辰中，请稍后再试。</span>';
             } finally {
                 fortuneBtn.textContent = '开始算命';
                 fortuneBtn.disabled = false;
@@ -370,7 +382,11 @@
         }
 
         // Initialize first tab
-        switchTab('number');
+        document.addEventListener('DOMContentLoaded', () => {
+            const initialTab = 'number';
+            document.getElementById(initialTab === 'number' ? 'number-evaluation' : 'fortune-telling').classList.add('active');
+            document.querySelector(`.tab-btn[onclick="switchTab('${initialTab}')"]`).classList.add('active');
+        });
     </script>
 </body>
 </html>
