@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>红姐数字能量站</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #e8f5e9;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 500px;
+        }
+        .title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: border-color 0.3s;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .input-group input:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        .result-item {
+            margin: 15px 0;
+            font-size: 18px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .result-item span {
+            font-weight: bold;
+            color: #333;
+        }
+        .evaluate-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.3s;
+            font-weight: bold;
+        }
+        .evaluate-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">红姐数字能量站</h1>
+
+        <div class="tab-container">
+            <button class="tab-btn active" onclick="switchTab('number')">手机尾号估值</button>
+            <button class="tab-btn" onclick="switchTab('fortune')">生辰八字算命</button>
+        </div>
+
+        <div id="number-evaluation" class="tab-content active">
+            <h2 class="subtitle">寻找5年以上过万手机尾号</h2>
+            <div class="input-group">
+            <label for="number">尾号4位：</label>
+            <input type="text" id="number" maxlength="4" placeholder="请输入手机尾号后4位">
+        </div>
+        <button class="evaluate-btn" onclick="evaluateNumber()">立即评估</button>
+        <div class="result" id="result" style="display: none;">
+                <div class="result-item">评估价格：<span id="price">-</span></div>
+                <div class="result-item">等级：<span id="level">-</span></div>
+                <div class="result-item">建议：<span id="suggestion">-</span></div>
+            </div>
+        </div>
+
+        <div id="fortune-telling" class="tab-content">
+            <h2 class="subtitle">生辰八字算命</h2>
+            <div class="input-group">
+                <label for="birthdate">出生年月日：</label>
+                <input type="date" id="birthdate">
+            </div>
+            <button class="evaluate-btn" onclick="getFortune()">开始算命</button>
+            <div class="result" id="fortune-result" style="display: none;">
+                <div class="result-item">命运解读：<span id="fortune-text">-</span></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function switchTab(tabName) {
+            const tabContents = document.querySelectorAll('.tab-content');
+            const tabButtons = document.querySelectorAll('.tab-btn');
+
+            tabContents.forEach(content => {
+                content.classList.remove('active');
+            });
+            tabButtons.forEach(button => {
+                button.classList.remove('active');
+            });
+
+            if (tabName === 'number') {
+                document.getElementById('number-evaluation').classList.add('active');
+            } else if (tabName === 'fortune') {
+                document.getElementById('fortune-telling').classList.add('active');
+            }
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        }
+
+        async function evaluateNumber() {
+            const numberInput = document.getElementById('number');
+            const number = numberInput.value;
+            const resultDiv = document.getElementById('result');
+            const priceEl = document.getElementById('price');
+            const levelEl = document.getElementById('level');
+            const suggestionEl = document.getElementById('suggestion');
+            const evaluateBtn = document.querySelector('.evaluate-btn');
+
+            if (!number || number.length !== 4 || !/^\d+$/.test(number)) {
+                alert('请输入正确的4位数字！');
+                return;
+            }
+
+            // 显示加载状态
+            evaluateBtn.textContent = '评估中...';
+            evaluateBtn.disabled = true;
+            resultDiv.style.display = 'none';
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('number', number);
+
+                const response = await fetch('/evaluate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '评估失败');
+                }
+
+                const result = await response.json();
+
+                // 显示结果
+                priceEl.textContent = result.price;
+                levelEl.textContent = result.level;
+                suggestionEl.textContent = result.suggestion;
+                resultDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('评估出错:', error);
+                alert('评估服务出错，请稍后再试。');
+            } finally {
+                // 恢复按钮状态
+                evaluateBtn.textContent = '立即评估';
+                evaluateBtn.disabled = false;
+            }
+        }
+
+        // 输入限制为数字
+        document.getElementById('number').addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '').slice(0, 4);
+        });
+
+        async function getFortune() {
+            const birthdateInput = document.getElementById('birthdate');
+            const birthdateValue = birthdateInput.value;
+            const birthdate = birthdateValue.replace(/-/g, '/');
+            const fortuneResultDiv = document.getElementById('fortune-result');
+            const fortuneTextEl = document.getElementById('fortune-text');
+            const fortuneBtn = document.querySelector('#fortune-telling .evaluate-btn');
+
+            if (!birthdate) {
+                alert('请选择您的出生年月日！');
+                return;
+            }
+
+            // 显示加载状态
+            fortuneBtn.textContent = '算命中...';
+            fortuneBtn.disabled = true;
+            fortuneResultDiv.style.display = 'block';
+            fortuneTextEl.innerHTML = ''; // 清空之前的结果
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('birthdate', birthdate);
+
+                const response = await fetch('/fortune', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('算命服务出错');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        break;
+                    }
+                    const chunk = decoder.decode(value, { stream: true });
+                    fortuneTextEl.innerHTML += chunk.replace(/\n/g, '<br>');
+                }
+
+            } catch (error) {
+                console.error('算命出错:', error);
+                fortuneTextEl.textContent = '算命服务出错，请稍后再试。';
+            } finally {
+                // 恢复按钮状态
+                fortuneBtn.textContent = '开始算命';
+                fortuneBtn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
