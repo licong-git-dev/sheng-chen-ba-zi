@@ -3,7 +3,6 @@ from dotenv import load_dotenv
 import dashscope
 from flask import Flask, request, render_template, Response, stream_with_context, jsonify
 from http import HTTPStatus
-from urllib.parse import parse_qs
 import json
 
 # 在程序启动时加载 .env 文件中的环境变量
@@ -50,36 +49,18 @@ def generate_stream(prompt):
         print(error_message)
         yield error_message
 
-def get_request_data():
-    """手动解析请求体，兼容不同环境"""
-    if request.form:
-        return request.form
-    try:
-        raw_data = request.get_data(as_text=True)
-        parsed_data = {k: v[0] for k, v in parse_qs(raw_data).items()}
-        return parsed_data
-    except Exception as e:
-        print(f"手动解析请求数据失败: {e}")
-        return {}
-
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
-    # --- 调试代码 --- #
-    raw_data_for_debug = request.get_data(as_text=True)
-    headers_for_debug = dict(request.headers)
-    # --- 结束调试 --- #
-
-    data = get_request_data()
-    number = data.get('number')
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '请求体必须是有效的JSON。'}), 400
+        number = data.get('number')
+    except Exception as e:
+        return jsonify({'error': f'解析JSON请求失败: {str(e)}'}), 400
 
     if not number:
-        debug_info = {
-            'message': '后端未能从请求中解析出 number 字段',
-            'request_headers': headers_for_debug,
-            'raw_request_body': raw_data_for_debug,
-            'parsed_data': data
-        }
-        return jsonify({'error': '无法获取手机尾号，请检查请求。', 'debug': debug_info}), 400
+        return jsonify({'error': 'JSON请求体中必须包含 \'number\' 字段。'}), 400
 
     prompt = f"""
 你是一位精通东西方数字神秘学、命理学和中华传统文化的趣味解读大师。
@@ -117,10 +98,16 @@ def evaluate():
 
 @app.route('/fortune', methods=['POST'])
 def fortune():
-    data = get_request_data()
-    birthdate = data.get('birthdate')
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': '请求体必须是有效的JSON。'}), 400
+        birthdate = data.get('birthdate')
+    except Exception as e:
+        return jsonify({'error': f'解析JSON请求失败: {str(e)}'}), 400
+
     if not birthdate:
-        return Response("无法获取出生日期，请检查请求。", status=400)
+        return jsonify({'error': 'JSON请求体中必须包含 \'birthdate\' 字段。'}), 400
 
     prompt = f"""
 你是一位现代的、积极心理学导向的命理解读师，同时也是一个温暖、善于鼓励的人生导师。
