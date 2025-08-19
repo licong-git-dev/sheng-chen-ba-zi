@@ -1,3 +1,2 @@
 flask
-dashscope
-python-dotenv
+gunicorn
