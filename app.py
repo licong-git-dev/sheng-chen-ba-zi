@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import dashscope
 from flask import Flask, request, render_template, Response, stream_with_context, jsonify
 from http import HTTPStatus
+from urllib.parse import parse_qs
 
 # 在程序启动时加载 .env 文件中的环境变量
 load_dotenv()
@@ -10,13 +11,10 @@ load_dotenv()
 app = Flask(__name__)
 
 # --- 安全地从环境变量获取API Key ---
-# load_dotenv() 会加载 Vercel 平台设置的环境变量
 api_key = os.getenv("DASHSCOPE_API_KEY")
 if api_key:
     dashscope.api_key = api_key
 else:
-    # 如果没有找到API Key，可以记录一个错误或直接让应用启动失败
-    # 这里我们选择打印一个警告，但在实际调用时会因为key是None而失败
     print("警告：未找到 DASHSCOPE_API_KEY 环境变量。API调用将会失败。")
 
 
@@ -51,11 +49,27 @@ def generate_stream(prompt):
         print(error_message)
         yield error_message
 
+def get_request_data():
+    """手动解析请求体，兼容不同环境"""
+    if request.form:
+        return request.form
+    try:
+        # 读取原始数据并解码为字符串
+        raw_data = request.get_data(as_text=True)
+        # 使用 urllib.parse.parse_qs 解析表单数据
+        # parse_qs 会将值解析为列表，所以我们需要提取第一个元素
+        parsed_data = {k: v[0] for k, v in parse_qs(raw_data).items()}
+        return parsed_data
+    except Exception as e:
+        print(f"手动解析请求数据失败: {e}")
+        return {}
+
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
-    number = request.form.get('number')
+    data = get_request_data()
+    number = data.get('number')
     if not number:
-        return jsonify({'error': '请输入手机尾号'}), 400
+        return jsonify({'error': '无法获取手机尾号，请检查请求。'}), 400
 
     prompt = f"""
 你是一位精通东西方数字神秘学、命理学和中华传统文化的趣味解读大师。
@@ -73,19 +87,16 @@ def evaluate():
 - 风格要像一个网络上的趣味测试，轻松、好玩，多用积极正面的词语。
 - 内容要原创，每次生成都要不一样。
 - 总字数在200-300字之间。
-- 以JSON格式返回，包含 price, level, suggestion 三个字段。price是趣味评分，level是号码等级（如：神话级、传说级、稀有级），suggestion是综合建议。
+- 以JSON格式返回，包含 price, level, suggestion 三个字段。price是趣味评分（字符串形式），level是号码等级（如：神话级、传说级、稀有级），suggestion是综合建议。
 - 直接返回JSON对象，不要包含任何其他说明或 ```json ``` 标记。
 """
     try:
-        # 对于非流式请求，我们直接调用并获取结果
         response = dashscope.Generation.call(
             model='qwen-turbo',
             prompt=prompt,
             result_format='text'
         )
         if response.status_code == HTTPStatus.OK:
-            # 假设AI能按要求返回JSON字符串，我们直接返回
-            # 在实际应用中，这里需要更健壮的解析和错误处理
             return Response(response.output.text, content_type='application/json')
         else:
             error_msg = f"API Error: Code: {response.code}, Message: {response.message}"
@@ -96,9 +107,10 @@ def evaluate():
 
 @app.route('/fortune', methods=['POST'])
 def fortune():
-    birthdate = request.form.get('birthdate')
+    data = get_request_data()
+    birthdate = data.get('birthdate')
     if not birthdate:
-        return Response("请输入出生日期", status=400)
+        return Response("无法获取出生日期，请检查请求。", status=400)
 
     prompt = f"""
 你是一位现代的、积极心理学导向的命理解读师，同时也是一个温暖、善于鼓励的人生导师。
