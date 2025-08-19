@@ -4,6 +4,7 @@ import dashscope
 from flask import Flask, request, render_template, Response, stream_with_context, jsonify
 from http import HTTPStatus
 from urllib.parse import parse_qs
+import json
 
 # 在程序启动时加载 .env 文件中的环境变量
 load_dotenv()
@@ -54,10 +55,7 @@ def get_request_data():
     if request.form:
         return request.form
     try:
-        # 读取原始数据并解码为字符串
         raw_data = request.get_data(as_text=True)
-        # 使用 urllib.parse.parse_qs 解析表单数据
-        # parse_qs 会将值解析为列表，所以我们需要提取第一个元素
         parsed_data = {k: v[0] for k, v in parse_qs(raw_data).items()}
         return parsed_data
     except Exception as e:
@@ -66,10 +64,22 @@ def get_request_data():
 
 @app.route('/evaluate', methods=['POST'])
 def evaluate():
+    # --- 调试代码 --- #
+    raw_data_for_debug = request.get_data(as_text=True)
+    headers_for_debug = dict(request.headers)
+    # --- 结束调试 --- #
+
     data = get_request_data()
     number = data.get('number')
+
     if not number:
-        return jsonify({'error': '无法获取手机尾号，请检查请求。'}), 400
+        debug_info = {
+            'message': '后端未能从请求中解析出 number 字段',
+            'request_headers': headers_for_debug,
+            'raw_request_body': raw_data_for_debug,
+            'parsed_data': data
+        }
+        return jsonify({'error': '无法获取手机尾号，请检查请求。', 'debug': debug_info}), 400
 
     prompt = f"""
 你是一位精通东西方数字神秘学、命理学和中华传统文化的趣味解读大师。
