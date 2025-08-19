@@ -23,22 +23,27 @@ def index():
     return render_template('index.html')
 
 def generate_stream(prompt):
-    """一个通用的流式生成器函数"""
+    """一个通用的流式生成器函数，只返回增量内容。"""
     if not dashscope.api_key:
         yield "错误：服务器未配置API Key。"
         return
 
     try:
         responses = dashscope.Generation.call(
-            model='qwen-plus', # <--- 模型升级
+            model='qwen-plus',
             prompt=prompt,
             stream=True,
             result_format='text'
         )
 
+        previous_content = ""
         for resp in responses:
             if resp.status_code == HTTPStatus.OK:
-                yield resp.output.text
+                full_content = resp.output.text
+                # 计算并发送增量内容
+                incremental_content = full_content[len(previous_content):]
+                yield incremental_content
+                previous_content = full_content
             else:
                 error_message = f"请求错误：code: {resp.code}, message: {resp.message}"
                 print(error_message)
