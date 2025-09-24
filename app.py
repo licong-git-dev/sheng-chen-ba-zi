@@ -7,6 +7,8 @@ import json
 import base64
 from PIL import Image, ImageDraw, ImageFont
 import io
+import time
+import requests
 
 # 强制加载项目根目录下的 .env 文件，并覆盖任何已存在的同名系统级环境变量
 # 这能确保我们使用的是项目指定的API Key，而不是外部的无效Key
@@ -27,6 +29,48 @@ else:
 def index():
     return render_template('index.html')
 
+def call_ai_with_retry(prompt, stream=False, max_retries=3):
+    """带重试机制的AI调用函数"""
+    for attempt in range(max_retries):
+        try:
+            if stream:
+                return dashscope.Generation.call(
+                    model='qwen-plus',
+                    prompt=prompt,
+                    stream=True,
+                    result_format='text',
+                    parameters={
+                        'temperature': 0.8,
+                        'top_k': 50,
+                        'top_p': 0.9,
+                        'max_tokens': 1500,
+                        'repetition_penalty': 1.1,
+                        'seed': None,
+                        'incremental_output': True
+                    }
+                )
+            else:
+                return dashscope.Generation.call(
+                    model='qwen-plus',
+                    prompt=prompt,
+                    result_format='text',
+                    parameters={
+                        'temperature': 0.7,
+                        'top_k': 50,
+                        'top_p': 0.9,
+                        'max_tokens': 2000,
+                        'repetition_penalty': 1.1,
+                        'seed': None,
+                        'incremental_output': False
+                    }
+                )
+        except Exception as e:
+            print(f"AI调用失败 (尝试 {attempt + 1}/{max_retries}): {str(e)}")
+            if attempt < max_retries - 1:
+                time.sleep(2 ** attempt)  # 指数退避
+            else:
+                raise e
+
 def generate_stream(prompt):
     """一个通用的流式生成器函数，只返回增量内容。"""
     if not dashscope.api_key:
@@ -34,12 +78,7 @@ def generate_stream(prompt):
         return
 
     try:
-        responses = dashscope.Generation.call(
-            model='qwen-plus',
-            prompt=prompt,
-            stream=True,
-            result_format='text'
-        )
+        responses = call_ai_with_retry(prompt, stream=True)
 
         previous_content = ""
         for resp in responses:
@@ -73,28 +112,38 @@ def evaluate():
         return jsonify({'error': 'JSON请求体中必须包含 \'number\' 字段。'}), 400
 
     prompt = f"""
-你是一位资深的数字能量解读专家和市场评估师，对中华文化中的数字谐音、易经卦象和现代商业价值有深入研究。
-请为我分析手机号码尾号：{number}，并给出一个符合市场预期的趣味估值。
+作为专业的数字文化研究专家和趣味评估师，请分析手机尾号：{number}
 
-**分析维度**：
-1.  **文化寓意**：深度解读数字的谐音和象征意义（例如，1314不仅是一生一世，也象征“一生一发”）。要求解读积极、新颖、令人信服。
-2.  **易经智慧**：简要提及该数字组合可能关联的积极卦象及其现代启示（例如，乾卦的自强不息）。
-3.  **能量磁场**：结合数字能量学，分析其包含的正向能量（如天医、延年、生气等），并说明其对个人运势的积极影响。
-4.  **市场稀有度**：基于数字组合的稀有性和受欢迎程度，给出一个综合评价。
+**角色设定**：你是红姐数字能量站的首席分析师，擅长用现代语言解读传统数字文化，语言风格要生动有趣、通俗易懂。
 
-**输出要求**：
-- **以JSON格式返回**，必须包含 `price`, `level`, `suggestion` 三个字段。
-- **`price` (string)**：必须给出一个 **3000到8000之间** 的趣味评估价格，必须是整数，并以字符串形式表示。**严禁总是给出相同的估值**，价格必须根据号码的吉利和稀有程度有显著的区分度。例如，普通号码估值可以是 `"3888"`，而稀有吉祥号（如888, 666）则应该估值更高，如 `"7888"`。
-- **`level` (string)**：根据综合评估，给出号码等级（例如：稀有级、传说级、典藏级）。
-- **`suggestion` (string)**：生成一段200-300字的综合建议，语言要专业、风趣、积极向上，总结该号码的价值和带来的好运。
-- **严格遵守**：直接返回纯JSON对象，不包含任何额外说明或Markdown标记。
+**分析框架**（请严格按此顺序分析）：
+1. **谐音寓意**：分析数字的中文谐音含义，要有创意且积极正面
+2. **数字能量**：从传统数字学角度解读其能量属性
+3. **市场价值**：基于稀有度和吉祥程度评估市场价值
+4. **运势影响**：说明对主人可能带来的积极影响
+
+**重要约束条件**：
+- 必须输出标准JSON格式
+- price字段：根据号码特殊性给出3000-8000的价格（整数字符串）
+- level字段：选择适合的等级（普通级/优质级/稀有级/典藏级/传说级）
+- suggestion字段：200-300字的专业建议，要有具体的文化内涵解释
+
+**特别要求**：
+- 绝对不要输出相同的价格，必须根据号码特征有差异化定价
+- 语言要符合中文表达习惯，避免翻译腔
+- 内容要富有文化底蕴但通俗易懂
+- 只返回JSON，不要任何额外文字
+
+请开始分析尾号：{number}
 """
+    # 检查缓存
+    cache_key = get_cache_key("evaluate", number)
+    cached_result = get_cached_result(cache_key)
+    if cached_result:
+        return Response(cached_result, content_type='application/json')
+
     try:
-        response = dashscope.Generation.call(
-            model='qwen-plus', # <--- 模型升级
-            prompt=prompt,
-            result_format='text'
-        )
+        response = call_ai_with_retry(prompt, stream=False)
         if response.status_code == HTTPStatus.OK:
             raw_text = response.output.text
             # 找到第一个 '{' 和最后一个 '}' 来提取纯净的JSON字符串
@@ -106,6 +155,8 @@ def evaluate():
                 try:
                     # 在返回前，先在后端验证一下它是不是一个合法的JSON
                     json.loads(json_str)
+                    # 保存到缓存
+                    set_cache_result(cache_key, json_str)
                     return Response(json_str, content_type='application/json')
                 except json.JSONDecodeError:
                     return jsonify({'error': 'AI返回了格式错误的JSON，无法解析。'}), 500
@@ -132,10 +183,27 @@ def fortune():
         return jsonify({'error': 'JSON请求体中必须包含 \'birthdate\' 字段。'}), 400
 
     prompt = f"""
-你是一位资深的人生导师，能融合现代心理学与东方智慧。
-请根据我的生日 {birthdate}，为我撰写一份约300-400字的"个人天赋与能量蓝图"。
-请用温暖、专业、富有启发性的语言，直接开始分析，无需客套。
-请深入解读我的核心性格、事业潜能、情感模式，并给出未来一年的幸运建议。
+**角色**：你是红姐数字能量站的命理文化专家，专门从传统文化角度解读生辰信息。
+
+**任务**：根据生日 {birthdate} 进行传统文化分析
+
+**分析要求**：
+1. **性格特质**：从出生月份、季节等角度分析性格倾向
+2. **天赋优势**：分析可能具备的天然优势和潜能
+3. **情感特征**：解读在人际关系中的表现特点
+4. **事业方向**：建议适合的发展领域和方式
+5. **开运建议**：给出未来一年的吉祥提醒
+
+**输出规范**：
+- 语言要温暖亲切，如红姐亲自解读
+- 内容要具体实用，不空泛
+- 长度控制在350-450字
+- 要体现中华传统文化底蕴
+- 语气积极正面，给人希望和动力
+
+**重要声明**：请在开头说明这是"传统文化娱乐解读，仅供参考"
+
+现在开始为生日{birthdate}的朋友进行解读：
 """
     return Response(stream_with_context(generate_stream(prompt)), content_type='text/plain; charset=utf-8')
 
@@ -153,21 +221,30 @@ def name_analysis():
         return jsonify({'error': 'JSON请求体中必须包含 \'name\' 字段。'}), 400
 
     prompt = f"""
-你是一位传统文化学者，专门研究汉字文化和姓名学。
-请对姓名：{name} 进行深度文化解读，注意这是传统文化分析，仅供娱乐参考。
+**角色**：你是红姐数字能量站的汉字文化专家，专注传统姓名文化解读。
 
-**分析维度**：
-1. **字形解读**：分析每个字的字形结构和文化内涵
-2. **五行属性**：从传统五行理论角度分析字的属性
-3. **音韵美学**：分析名字的音韵搭配和朗读效果
-4. **文化寓意**：挖掘名字中蕴含的传统文化意义
-5. **现代启示**：结合现代社会给出积极的人格特质分析
+**任务**：为姓名"{name}"进行传统文化解析
 
-**输出要求**：
-- 语言温和、积极、富有文化底蕴
-- 长度约400-500字
-- 强调这是传统文化解读，仅供娱乐参考
-- 避免绝对化表述，多用"可能"、"倾向于"等词汇
+**解读框架**：
+1. **字音解析**：分析姓名的音韵特点和谐音寓意
+2. **字形文化**：解读汉字结构蕴含的文化内涵
+3. **五行能量**：从传统五行角度分析姓名能量
+4. **性格映射**：推测可能的性格特质和天赋
+5. **人生暗示**：分析姓名对人生路径的积极指引
+
+**表达风格**：
+- 用红姐温暖亲切的语调
+- 语言要生动有趣，避免学术化
+- 多用"可能"、"倾向于"等谦逊表述
+- 内容积极正面，给人启发
+- 长度控制在420-520字
+
+**合规要求**：
+- 开头必须声明"这是传统文化娱乐解读，仅供参考"
+- 强调姓名只是文化符号，人生靠自己努力
+- 避免任何绝对化的预测表述
+
+现在开始为"{name}"进行姓名文化解读：
 """
     return Response(stream_with_context(generate_stream(prompt)), content_type='text/plain; charset=utf-8')
 
@@ -227,31 +304,30 @@ def generate_share_card():
         return jsonify({'error': f'解析JSON请求失败: {str(e)}'}), 400
 
     try:
-        # 创建分享卡片图像
-        width, height = 600, 800
+        # 优化：使用更小的图像尺寸提高性能
+        width, height = 400, 600
 
-        # 创建渐变背景
+        # 创建分享卡片图像（优化版本）
         image = Image.new('RGB', (width, height), '#6a11cb')
         draw = ImageDraw.Draw(image)
 
-        # 绘制渐变背景
-        for y in range(height):
-            ratio = y / height
+        # 简化渐变背景绘制（减少循环次数）
+        gradient_steps = 50  # 减少渐变步数提高性能
+        step_height = height // gradient_steps
+
+        for i in range(gradient_steps):
+            y = i * step_height
+            ratio = i / gradient_steps
             r = int(106 * (1 - ratio) + 37 * ratio)
             g = int(17 * (1 - ratio) + 117 * ratio)
             b = int(203 * (1 - ratio) + 252 * ratio)
             color = (r, g, b)
-            draw.line([(0, y), (width, y)], fill=color)
+            draw.rectangle([(0, y), (width, y + step_height)], fill=color)
 
-        # 尝试使用系统字体，如果不可用则使用默认字体
-        try:
-            title_font = ImageFont.truetype("arial.ttf", 36)
-            subtitle_font = ImageFont.truetype("arial.ttf", 24)
-            content_font = ImageFont.truetype("arial.ttf", 18)
-        except:
-            title_font = ImageFont.load_default()
-            subtitle_font = ImageFont.load_default()
-            content_font = ImageFont.load_default()
+        # 优化字体加载（使用默认字体提高性能）
+        title_font = ImageFont.load_default()
+        subtitle_font = ImageFont.load_default()
+        content_font = ImageFont.load_default()
 
         # 绘制标题
         title = "红姐数字能量站"
@@ -305,23 +381,29 @@ def generate_share_card():
         footer_text = "仅供传统文化娱乐参考"
         footer_bbox = draw.textbbox((0, 0), footer_text, font=content_font)
         footer_width = footer_bbox[2] - footer_bbox[0]
-        draw.text(((width - footer_width) // 2, height - 80), footer_text, fill='rgba(255,255,255,0.7)', font=content_font)
+        draw.text(((width - footer_width) // 2, height - 80), footer_text, fill='white', font=content_font)
 
-        # 将图像转换为base64
+        # 优化图片压缩输出
         buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
+        image.save(buffered, format="JPEG", quality=85, optimize=True)  # 使用JPEG格式和85%质量
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
 
         return jsonify({
-            'image': f'data:image/png;base64,{img_base64}',
+            'image': f'data:image/jpeg;base64,{img_base64}',
             'message': '分享卡片生成成功！'
         })
 
     except Exception as e:
         return jsonify({'error': f'生成分享卡片失败: {str(e)}'}), 500
 
-# 简单的内存排行榜（实际项目中应使用数据库）
-rankings = {
+# 排行榜数据持久化存储
+import os
+import json
+
+RANKINGS_FILE = 'rankings.json'
+
+# 默认排行榜数据
+default_rankings = {
     'top_numbers': [
         {'number': '8888', 'price': '7888', 'level': '传说级', 'timestamp': '2024-01-01'},
         {'number': '6666', 'price': '6666', 'level': '稀有级', 'timestamp': '2024-01-01'},
@@ -331,6 +413,51 @@ rankings = {
     ],
     'recent_evaluations': []
 }
+
+def load_rankings():
+    """从文件加载排行榜数据"""
+    try:
+        if os.path.exists(RANKINGS_FILE):
+            with open(RANKINGS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            return default_rankings.copy()
+    except Exception as e:
+        print(f"加载排行榜数据失败: {e}")
+        return default_rankings.copy()
+
+def save_rankings(rankings):
+    """保存排行榜数据到文件"""
+    try:
+        with open(RANKINGS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(rankings, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"保存排行榜数据失败: {e}")
+
+# 加载初始数据
+rankings = load_rankings()
+
+# 简单的内存缓存
+cache = {}
+CACHE_DURATION = 300  # 5分钟缓存
+
+def get_cache_key(prefix, data):
+    """生成缓存键"""
+    return f"{prefix}:{hash(str(data))}"
+
+def get_cached_result(cache_key):
+    """获取缓存结果"""
+    if cache_key in cache:
+        result, timestamp = cache[cache_key]
+        if time.time() - timestamp < CACHE_DURATION:
+            return result
+        else:
+            del cache[cache_key]
+    return None
+
+def set_cache_result(cache_key, result):
+    """设置缓存结果"""
+    cache[cache_key] = (result, time.time())
 
 @app.route('/rankings', methods=['GET'])
 def get_rankings():
@@ -386,6 +513,8 @@ def add_to_ranking():
                 rankings['top_numbers'].sort(key=lambda x: int(x['price'].replace(',', '')), reverse=True)
                 rankings['top_numbers'] = rankings['top_numbers'][:20]
 
+        # 保存数据到文件
+        save_rankings(rankings)
         return jsonify({'message': '添加成功'})
 
     except Exception as e:

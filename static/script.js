@@ -33,12 +33,12 @@ function sleep(ms) {
 }
 
 async function evaluateNumber() {
-    const numberInput = document.getElementById('number');
+    const numberInput = DOMCache.get('number');
     const number = numberInput.value;
-    const resultDiv = document.getElementById('result');
-    const priceEl = document.getElementById('price');
-    const levelEl = document.getElementById('level');
-    const suggestionEl = document.getElementById('suggestion');
+    const resultDiv = DOMCache.get('result');
+    const priceEl = DOMCache.get('price');
+    const levelEl = DOMCache.get('level');
+    const suggestionEl = DOMCache.get('suggestion');
     const evaluateBtn = document.querySelector('#number-evaluation .evaluate-btn');
 
     // Clear previous results and errors
@@ -88,9 +88,23 @@ async function evaluateNumber() {
     }
 }
 
-document.getElementById('number').addEventListener('input', function(e) {
-    this.value = this.value.replace(/\D/g, '').slice(0, 4);
-});
+// 优化的数字输入限制（防抖）
+const optimizeNumberInput = debounce(function(e) {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+}, 100);
+
+// 统一的输入框优化初始化
+function initializeInputs() {
+    const numberInput = DOMCache.get('number');
+    const luckyNumberInput = DOMCache.get('luckyNumber');
+
+    if (numberInput) {
+        numberInput.addEventListener('input', optimizeNumberInput);
+    }
+    if (luckyNumberInput) {
+        luckyNumberInput.addEventListener('input', optimizeLuckyNumberInput);
+    }
+}
 
 async function getFortune() {
     const birthdateInput = document.getElementById('birthdate');
@@ -345,39 +359,42 @@ function showPrizeResult(result) {
 }
 
 function createConfetti() {
-    // 简单的庆祝效果
-    for (let i = 0; i < 50; i++) {
+    // 优化的庆祝效果（减少数量，提高性能）
+    const confettiCount = window.innerWidth < 768 ? 15 : 25; // 移动端减少数量
+
+    for (let i = 0; i < confettiCount; i++) {
         setTimeout(() => {
             const confetti = document.createElement('div');
-            confetti.innerHTML = ['🎉', '✨', '🎊', '⭐'][Math.floor(Math.random() * 4)];
-            confetti.style.position = 'fixed';
-            confetti.style.left = Math.random() * window.innerWidth + 'px';
-            confetti.style.top = '-20px';
-            confetti.style.zIndex = '9999';
-            confetti.style.fontSize = '20px';
-            confetti.style.pointerEvents = 'none';
+            confetti.innerHTML = ['🎉', '✨', '🎊'][i % 3]; // 减少随机计算
+            confetti.style.cssText = `
+                position: fixed;
+                left: ${Math.random() * window.innerWidth}px;
+                top: -20px;
+                z-index: 9999;
+                font-size: 18px;
+                pointer-events: none;
+                will-change: transform, opacity;
+            `;
             document.body.appendChild(confetti);
 
-            const duration = 3000;
-            confetti.animate([
+            const duration = 2500; // 缩短动画时间
+            const animation = confetti.animate([
                 { transform: 'translateY(0) rotate(0deg)', opacity: 1 },
-                { transform: `translateY(${window.innerHeight + 100}px) rotate(720deg)`, opacity: 0 }
+                { transform: `translateY(${window.innerHeight + 50}px) rotate(360deg)`, opacity: 0 }
             ], {
                 duration: duration,
-                easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)'
+                easing: 'ease-out' // 简化缓动函数
             });
 
-            setTimeout(() => {
-                confetti.remove();
-            }, duration);
-        }, i * 100);
+            animation.onfinish = () => confetti.remove();
+        }, i * 80); // 减少延迟时间
     }
 }
 
-// 数字输入限制
-document.getElementById('luckyNumber').addEventListener('input', function(e) {
-    this.value = this.value.replace(/\D/g, '').slice(0, 4);
-});
+// 幸运数字输入限制（优化版本）
+const optimizeLuckyNumberInput = debounce(function(e) {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+}, 100);
 
 // 分享卡片功能
 let currentShareImage = null;
@@ -476,30 +493,48 @@ document.addEventListener('click', function(event) {
     }
 });
 
-// 音效管理
+// 优化的音效管理
 const SoundManager = {
-    sounds: {},
+    audioContext: null,
     enabled: true,
+    lastSoundTime: 0,
+    soundCooldown: 100, // 音效冷却时间
 
-    // 使用Web Audio API生成音效
+    // 初始化音频上下文（复用）
+    initAudioContext() {
+        if (!this.audioContext) {
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        return this.audioContext;
+    },
+
+    // 优化的音效生成
     generateTone(frequency, duration, type = 'sine') {
         if (!this.enabled) return;
 
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
+        const now = Date.now();
+        if (now - this.lastSoundTime < this.soundCooldown) return;
+        this.lastSoundTime = now;
 
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        try {
+            const audioContext = this.initAudioContext();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
 
-        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-        oscillator.type = type;
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
 
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            oscillator.type = type;
 
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + duration);
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime); // 降低音量
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+        } catch (error) {
+            console.warn('音效播放失败:', error);
+        }
     },
 
     // 播放按钮点击音效
@@ -671,44 +706,81 @@ async function analyzeName() {
     }
 }
 
-// 为打字效果添加音效
+// 为打字效果添加音效（优化版本）
 function addTypingSound() {
+    let lastSoundTime = 0;
+    const soundCooldown = 200; // 音效冷却时间200ms
+
     const observer = new MutationObserver((mutations) => {
-        mutations.forEach((mutation) => {
-            if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                // 随机播放打字音效（降低频率避免太吵）
-                if (Math.random() < 0.1) {
-                    SoundManager.playType();
-                }
-            }
-        });
+        const now = Date.now();
+        if (now - lastSoundTime < soundCooldown) return;
+
+        // 降低音效触发频率，减少性能开销
+        if (Math.random() < 0.05) {
+            SoundManager.playType();
+            lastSoundTime = now;
+        }
     });
 
-    // 观察结果文本的变化
-    const fortuneText = document.getElementById('fortune-text');
-    const nameText = document.getElementById('name-text');
+    // 延迟观察，减少初始化开销
+    setTimeout(() => {
+        const fortuneText = document.getElementById('fortune-text');
+        const nameText = document.getElementById('name-text');
 
-    if (fortuneText) observer.observe(fortuneText, { childList: true, subtree: true, characterData: true });
-    if (nameText) observer.observe(nameText, { childList: true, subtree: true, characterData: true });
+        if (fortuneText) observer.observe(fortuneText, { childList: true, characterData: true });
+        if (nameText) observer.observe(nameText, { childList: true, characterData: true });
+    }, 1000);
 }
 
-// Initialize first tab
+// 优化：DOM元素缓存
+const DOMCache = {
+    elements: new Map(),
+    get(id) {
+        if (!this.elements.has(id)) {
+            this.elements.set(id, document.getElementById(id));
+        }
+        return this.elements.get(id);
+    }
+};
+
+// 防抖函数
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// 优化的页面初始化
 document.addEventListener('DOMContentLoaded', () => {
+    // 立即初始化关键功能
     const initialTab = 'number';
     switchTab(initialTab);
+    initializeInputs();
 
-    // 初始化音效和动画
-    addSoundToggle();
-    addButtonSounds();
-    addEnhancedAnimations();
-    addTypingSound();
-
-    // 添加页面加载动画
+    // 优化的页面加载动画
     document.body.style.opacity = '0';
-    setTimeout(() => {
-        document.body.style.transition = 'opacity 0.5s ease-in-out';
+    requestAnimationFrame(() => {
+        document.body.style.transition = 'opacity 0.3s ease-in-out';
         document.body.style.opacity = '1';
-    }, 100);
+    });
+
+    // 延迟初始化非关键功能（减少首次加载时间）
+    setTimeout(() => {
+        addSoundToggle();
+        addButtonSounds();
+        addEnhancedAnimations();
+    }, 300);
+
+    // 进一步延迟初始化音效（最不重要）
+    setTimeout(() => {
+        addTypingSound();
+    }, 800);
 });
 
 // 排行榜功能

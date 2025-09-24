@@ -321,23 +321,127 @@ body {
     animation: spin 3s cubic-bezier(0.23, 1, 0.320, 1) forwards;
 }
 
-/* 响应式设计 */
+/* 优化的响应式设计 */
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 20px;
+        margin: 0;
+        width: 100%;
+        max-width: none;
+        border-radius: 10px;
+    }
+
+    .title {
+        font-size: 22px;
+        margin-bottom: 20px;
+    }
+
+    .title-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .tab-container {
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 3px;
+    }
+
     .tab-btn {
-        font-size: 12px;
-        padding: 6px 10px;
-        min-width: 100px;
+        font-size: 11px;
+        padding: 8px 12px;
+        min-width: 75px;
+        margin: 2px;
+    }
+
+    .subtitle {
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+    }
+
+    .input-group label {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .input-group input {
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    .evaluate-btn {
+        padding: 12px 25px;
+        font-size: 16px;
+        margin-bottom: 15px;
+    }
+
+    .result {
+        padding: 15px;
+        margin-top: 20px;
+    }
+
+    .result-item {
+        font-size: 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .result-item strong {
+        margin-right: 0;
     }
 
     #wheelCanvas {
-        width: 250px;
-        height: 250px;
+        width: 220px;
+        height: 220px;
     }
 
     .spin-btn {
-        width: 60px;
-        height: 60px;
+        width: 55px;
+        height: 55px;
+        font-size: 12px;
+    }
+
+    .wheel-container {
+        margin: 20px 0;
+    }
+
+    .prize-display {
+        padding: 15px;
+    }
+
+    #prizeIcon {
+        font-size: 36px;
+    }
+
+    #prizeName {
+        font-size: 20px;
+    }
+
+    #prizeMessage {
         font-size: 14px;
+    }
+
+    .modal-content {
+        padding: 20px;
+        margin: 20px;
+        max-width: 95%;
+    }
+
+    .sound-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+        top: 15px;
+        right: 15px;
     }
 }
 
@@ -704,6 +808,7 @@ body {
         flex-direction: column;
         align-items: flex-start;
         gap: 10px;
+        padding: 12px;
     }
 
     .ranking-position {
@@ -713,12 +818,86 @@ body {
 
     .ranking-details {
         flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ranking-number {
+        font-size: 18px;
+    }
+
+    .ranking-price {
+        font-size: 14px;
+    }
+
+    .ranking-level {
+        font-size: 12px;
+    }
+
+    .ranking-time {
+        font-size: 11px;
+    }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+
+    .title {
+        font-size: 20px;
         gap: 10px;
     }
 
     .tab-btn {
-        font-size: 11px;
+        font-size: 10px;
         padding: 6px 8px;
-        min-width: 80px;
+        min-width: 65px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+    }
+
+    .input-group input {
+        padding: 10px;
+        font-size: 15px;
+    }
+
+    .evaluate-btn {
+        padding: 10px 20px;
+        font-size: 15px;
+    }
+
+    #wheelCanvas {
+        width: 180px;
+        height: 180px;
+    }
+
+    .spin-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 10px;
+    }
+
+    #prizeIcon {
+        font-size: 30px;
+    }
+
+    #prizeName {
+        font-size: 18px;
+    }
+
+    .ranking-item {
+        padding: 10px;
+    }
+
+    .modal-content {
+        padding: 15px;
+        margin: 10px;
     }
 }
