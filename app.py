@@ -10,19 +10,22 @@ import io
 import time
 import requests
 
-# 强制加载项目根目录下的 .env 文件，并覆盖任何已存在的同名系统级环境变量
-# 这能确保我们使用的是项目指定的API Key，而不是外部的无效Key
-load_dotenv(override=True)
+# Vercel环境适配：优先从环境变量加载配置
+# 在无服务器环境中，不依赖.env文件
+try:
+    load_dotenv(override=True)
+except:
+    pass  # 在Vercel环境中可能没有.env文件
 
 app = Flask(__name__)
 
 # --- 安全地从环境变量获取API Key ---
 api_key = os.getenv("DASHSCOPE_API_KEY")
-print(f"Attempting to use API Key: {api_key[:5]}...{api_key[-4:] if api_key else 'None'}")
 if api_key:
+    print(f"API Key loaded successfully: {api_key[:5]}...{api_key[-4:]}")
     dashscope.api_key = api_key
 else:
-    print("警告：未找到 DASHSCOPE_API_KEY 环境变量。API调用将会失败。")
+    print("警告：未找到 DASHSCOPE_API_KEY 环境变量。")
 
 
 @app.route('/')
@@ -400,10 +403,9 @@ def generate_share_card():
 import os
 import json
 
-RANKINGS_FILE = 'rankings.json'
-
-# 默认排行榜数据
-default_rankings = {
+# Vercel适配：使用内存存储代替文件存储
+# 在无服务器环境中无法进行持久化文件写入
+rankings = {
     'top_numbers': [
         {'number': '8888', 'price': '7888', 'level': '传说级', 'timestamp': '2024-01-01'},
         {'number': '6666', 'price': '6666', 'level': '稀有级', 'timestamp': '2024-01-01'},
@@ -413,29 +415,6 @@ default_rankings = {
     ],
     'recent_evaluations': []
 }
-
-def load_rankings():
-    """从文件加载排行榜数据"""
-    try:
-        if os.path.exists(RANKINGS_FILE):
-            with open(RANKINGS_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        else:
-            return default_rankings.copy()
-    except Exception as e:
-        print(f"加载排行榜数据失败: {e}")
-        return default_rankings.copy()
-
-def save_rankings(rankings):
-    """保存排行榜数据到文件"""
-    try:
-        with open(RANKINGS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(rankings, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"保存排行榜数据失败: {e}")
-
-# 加载初始数据
-rankings = load_rankings()
 
 # 简单的内存缓存
 cache = {}
@@ -513,12 +492,15 @@ def add_to_ranking():
                 rankings['top_numbers'].sort(key=lambda x: int(x['price'].replace(',', '')), reverse=True)
                 rankings['top_numbers'] = rankings['top_numbers'][:20]
 
-        # 保存数据到文件
-        save_rankings(rankings)
+        # Vercel适配：内存存储，无需文件操作
         return jsonify({'message': '添加成功'})
 
     except Exception as e:
         return jsonify({'error': f'添加失败: {str(e)}'}), 500
+
+# Vercel部署适配
+# 确保app实例可以被Vercel访问
+application = app
 
 if __name__ == '__main__':
     app.run(debug=True)
