@@ -195,7 +195,709 @@ body {
     line-height: 1.6;
 }
 
-#fortune-text {
+#fortune-text, #name-text {
     line-height: 1.8;
     white-space: pre-wrap;
+}
+
+.disclaimer {
+    background: #fff3cd;
+    color: #856404;
+    padding: 8px 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    margin-bottom: 20px;
+    text-align: center;
+    border: 1px solid #ffeaa7;
+}
+
+.tab-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 30px;
+    background: #f0f0f0;
+    border-radius: 50px;
+    padding: 5px;
+    flex-wrap: wrap;
+    gap: 2px;
+}
+
+.tab-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 15px;
+    border: none;
+    background: transparent;
+    color: #555;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+}
+
+/* 转盘样式 */
+.wheel-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 30px 0;
+    position: relative;
+}
+
+#wheelCanvas {
+    border: 5px solid var(--primary-color);
+    border-radius: 50%;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.spin-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+    color: white;
+    border: none;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10;
+    box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+    transition: all 0.3s ease;
+}
+
+.spin-btn:hover {
+    transform: translate(-50%, -50%) scale(1.1);
+    box-shadow: 0 6px 20px rgba(255, 107, 107, 0.6);
+}
+
+.spin-btn:disabled {
+    background: #999;
+    cursor: not-allowed;
+    transform: translate(-50%, -50%) scale(1);
+    box-shadow: none;
+}
+
+.prize-display {
+    text-align: center;
+    padding: 20px;
+}
+
+#prizeIcon {
+    font-size: 48px;
+    margin-bottom: 15px;
+    animation: bounce 1s ease-in-out;
+}
+
+#prizeName {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+#prizeMessage {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #666;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-15px); }
+    60% { transform: translateY(-10px); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinning {
+    animation: spin 3s cubic-bezier(0.23, 1, 0.320, 1) forwards;
+}
+
+/* 优化的响应式设计 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 20px;
+        margin: 0;
+        width: 100%;
+        max-width: none;
+        border-radius: 10px;
+    }
+
+    .title {
+        font-size: 22px;
+        margin-bottom: 20px;
+    }
+
+    .title-icon {
+        width: 30px;
+        height: 30px;
+    }
+
+    .tab-container {
+        flex-wrap: wrap;
+        gap: 5px;
+        padding: 3px;
+    }
+
+    .tab-btn {
+        font-size: 11px;
+        padding: 8px 12px;
+        min-width: 75px;
+        margin: 2px;
+    }
+
+    .subtitle {
+        font-size: 18px;
+        margin-bottom: 15px;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+    }
+
+    .input-group label {
+        font-size: 14px;
+        margin-bottom: 8px;
+    }
+
+    .input-group input {
+        padding: 12px;
+        font-size: 16px;
+    }
+
+    .evaluate-btn {
+        padding: 12px 25px;
+        font-size: 16px;
+        margin-bottom: 15px;
+    }
+
+    .result {
+        padding: 15px;
+        margin-top: 20px;
+    }
+
+    .result-item {
+        font-size: 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .result-item strong {
+        margin-right: 0;
+    }
+
+    #wheelCanvas {
+        width: 220px;
+        height: 220px;
+    }
+
+    .spin-btn {
+        width: 55px;
+        height: 55px;
+        font-size: 12px;
+    }
+
+    .wheel-container {
+        margin: 20px 0;
+    }
+
+    .prize-display {
+        padding: 15px;
+    }
+
+    #prizeIcon {
+        font-size: 36px;
+    }
+
+    #prizeName {
+        font-size: 20px;
+    }
+
+    #prizeMessage {
+        font-size: 14px;
+    }
+
+    .modal-content {
+        padding: 20px;
+        margin: 20px;
+        max-width: 95%;
+    }
+
+    .sound-toggle {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+        top: 15px;
+        right: 15px;
+    }
+}
+
+/* 分享功能样式 */
+.share-section {
+    text-align: center;
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 20px;
+}
+
+.share-btn {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.share-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 模态框样式 */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow: auto;
+    position: relative;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    position: absolute;
+    right: 15px;
+    top: 15px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+#shareCardContainer {
+    margin: 20px 0;
+}
+
+.share-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.download-btn, .copy-btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.download-btn {
+    background: linear-gradient(135deg, #4CAF50, #66bb6a);
+    color: white;
+}
+
+.copy-btn {
+    background: linear-gradient(135deg, #2196F3, #42a5f5);
+    color: white;
+}
+
+.download-btn:hover, .copy-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        padding: 20px;
+        margin: 10px;
+    }
+
+    .share-buttons {
+        flex-direction: column;
+    }
+}
+
+/* 音效控制按钮样式 */
+.sound-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.sound-toggle:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 粒子效果背景 */
+.particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    animation: particleFloat 8s linear infinite;
+}
+
+@keyframes particleFloat {
+    0% {
+        opacity: 0;
+        transform: translateY(100vh) rotate(0deg);
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-10vh) rotate(360deg);
+    }
+}
+
+/* 增强按钮效果 */
+.evaluate-btn, .share-btn, .download-btn, .copy-btn, .spin-btn {
+    position: relative;
+    overflow: hidden;
+}
+
+.evaluate-btn::before, .share-btn::before, .download-btn::before, .copy-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s;
+}
+
+.evaluate-btn:hover::before, .share-btn:hover::before,
+.download-btn:hover::before, .copy-btn:hover::before {
+    left: 100%;
+}
+
+/* 排行榜样式 */
+.ranking-tabs {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+    background: #f0f0f0;
+    border-radius: 25px;
+    padding: 3px;
+}
+
+.ranking-tab-btn {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    color: #555;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 25px;
+    transition: all 0.3s ease;
+}
+
+.ranking-tab-btn.active {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.ranking-content {
+    display: none;
+}
+
+.ranking-content.active {
+    display: block;
+    animation: fadeIn 0.5s;
+}
+
+.ranking-list {
+    max-height: 400px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.ranking-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 15px;
+    margin: 8px 0;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.ranking-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.ranking-position {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 120px;
+}
+
+.rank-number {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.rank-number.top1 {
+    background: linear-gradient(135deg, #ffd700, #ffb300);
+    color: white;
+}
+
+.rank-number.top2 {
+    background: linear-gradient(135deg, #c0c0c0, #999999);
+    color: white;
+}
+
+.rank-number.top3 {
+    background: linear-gradient(135deg, #cd7f32, #a0522d);
+    color: white;
+}
+
+.rank-number.other {
+    background: #e0e0e0;
+    color: #555;
+}
+
+.ranking-info {
+    flex: 1;
+    text-align: left;
+    margin-left: 10px;
+}
+
+.ranking-number {
+    font-size: 20px;
+    font-weight: bold;
+    color: var(--primary-color);
+    font-family: 'Courier New', monospace;
+}
+
+.ranking-details {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-top: 5px;
+}
+
+.ranking-price {
+    font-size: 16px;
+    font-weight: bold;
+    color: #e91e63;
+}
+
+.ranking-level {
+    font-size: 14px;
+    color: #666;
+    background: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.ranking-time {
+    font-size: 12px;
+    color: #999;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+.no-data {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+}
+
+/* 排行榜响应式设计 */
+@media (max-width: 768px) {
+    .ranking-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .ranking-position {
+        align-self: stretch;
+        justify-content: space-between;
+    }
+
+    .ranking-details {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .ranking-number {
+        font-size: 18px;
+    }
+
+    .ranking-price {
+        font-size: 14px;
+    }
+
+    .ranking-level {
+        font-size: 12px;
+    }
+
+    .ranking-time {
+        font-size: 11px;
+    }
+}
+
+/* 超小屏幕优化 */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+
+    .container {
+        padding: 15px;
+    }
+
+    .title {
+        font-size: 20px;
+        gap: 10px;
+    }
+
+    .tab-btn {
+        font-size: 10px;
+        padding: 6px 8px;
+        min-width: 65px;
+    }
+
+    .subtitle {
+        font-size: 16px;
+    }
+
+    .input-group input {
+        padding: 10px;
+        font-size: 15px;
+    }
+
+    .evaluate-btn {
+        padding: 10px 20px;
+        font-size: 15px;
+    }
+
+    #wheelCanvas {
+        width: 180px;
+        height: 180px;
+    }
+
+    .spin-btn {
+        width: 45px;
+        height: 45px;
+        font-size: 10px;
+    }
+
+    #prizeIcon {
+        font-size: 30px;
+    }
+
+    #prizeName {
+        font-size: 18px;
+    }
+
+    .ranking-item {
+        padding: 10px;
+    }
+
+    .modal-content {
+        padding: 15px;
+        margin: 10px;
+    }
 }

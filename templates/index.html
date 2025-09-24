@@ -16,7 +16,10 @@
 
         <div class="tab-container">
             <button class="tab-btn active" onclick="switchTab('number')">手机尾号估值</button>
-            <button class="tab-btn" onclick="switchTab('fortune')">生辰八字算命</button>
+            <button class="tab-btn" onclick="switchTab('fortune')">生辰八字分析</button>
+            <button class="tab-btn" onclick="switchTab('name')">姓名文化解读</button>
+            <button class="tab-btn" onclick="switchTab('lucky')">幸运转盘</button>
+            <button class="tab-btn" onclick="switchTab('ranking')">价值排行榜</button>
         </div>
 
         <div id="number-evaluation" class="tab-content active">
@@ -30,21 +33,101 @@
                 <div class="result-item"><strong>评估价格：</strong><span id="price">-</span></div>
                 <div class="result-item"><strong>等级：</strong><span id="level">-</span></div>
                 <div class="result-item"><strong>建议：</strong><span id="suggestion">-</span></div>
+                <div class="share-section">
+                    <button class="share-btn" onclick="generateShareCard('number')">生成分享卡片</button>
+                </div>
             </div>
         </div>
 
         <div id="fortune-telling" class="tab-content">
-            <h2 class="subtitle">生辰八字算命</h2>
+            <h2 class="subtitle">生辰八字文化分析</h2>
+            <div class="disclaimer">*仅供传统文化娱乐参考</div>
             <div class="input-group">
                 <label for="birthdate">请选择您的出生年月日</label>
                 <input type="date" id="birthdate">
             </div>
-            <button class="evaluate-btn" onclick="getFortune()">开始算命</button>
+            <button class="evaluate-btn" onclick="getFortune()">开始分析</button>
             <div class="result" id="fortune-result" style="display: none;">
-                <div class="result-item"><strong>命运解读：</strong><span id="fortune-text">-</span></div>
+                <div class="result-item"><strong>文化解读：</strong><span id="fortune-text">-</span></div>
+            </div>
+        </div>
+
+        <div id="name-analysis" class="tab-content">
+            <h2 class="subtitle">姓名文化解读</h2>
+            <div class="disclaimer">*传统文化视角，仅供娱乐参考</div>
+            <div class="input-group">
+                <label for="name">请输入您的姓名</label>
+                <input type="text" id="name" placeholder="例如: 张三" maxlength="10">
+            </div>
+            <button class="evaluate-btn" onclick="analyzeName()">开始解读</button>
+            <div class="result" id="name-result" style="display: none;">
+                <div class="result-item"><strong>文化解析：</strong><span id="name-text">-</span></div>
+            </div>
+        </div>
+
+        <div id="lucky-draw" class="tab-content">
+            <h2 class="subtitle">数字能量转盘</h2>
+            <div class="disclaimer">*纯娱乐功能，请理性对待</div>
+            <div class="wheel-container">
+                <canvas id="wheelCanvas" width="300" height="300"></canvas>
+                <button id="spinBtn" class="spin-btn" onclick="spinWheel()">开始转动</button>
+            </div>
+            <div class="input-group">
+                <label for="luckyNumber">输入您的幸运数字（4位）</label>
+                <input type="text" id="luckyNumber" maxlength="4" placeholder="例如: 8888">
+            </div>
+            <div class="result" id="lucky-result" style="display: none;">
+                <div class="result-item">
+                    <div class="prize-display">
+                        <div id="prizeIcon">🎉</div>
+                        <div id="prizeName">-</div>
+                        <div id="prizeMessage">-</div>
+                    </div>
+                </div>
+                <div class="share-section">
+                    <button class="share-btn" onclick="generateShareCard('lucky')">生成分享卡片</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="ranking-board" class="tab-content">
+            <h2 class="subtitle">数字能量价值榜</h2>
+            <div class="disclaimer">*展示最具价值的号码排行</div>
+
+            <div class="ranking-tabs">
+                <button class="ranking-tab-btn active" onclick="switchRankingTab('top')">价值榜</button>
+                <button class="ranking-tab-btn" onclick="switchRankingTab('recent')">最近评估</button>
+            </div>
+
+            <div id="top-ranking" class="ranking-content active">
+                <div class="ranking-list" id="topRankingList">
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+
+            <div id="recent-ranking" class="ranking-content">
+                <div class="ranking-list" id="recentRankingList">
+                    <div class="loading">加载中...</div>
+                </div>
             </div>
         </div>
     </div>
+
+    <!-- 分享卡片模态框 -->
+    <div id="shareModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeShareModal()">&times;</span>
+            <h3>您的分享卡片</h3>
+            <div id="shareCardContainer">
+                <img id="shareCardImage" src="" alt="分享卡片" style="max-width: 100%; height: auto;">
+            </div>
+            <div class="share-buttons">
+                <button class="download-btn" onclick="downloadShareCard()">下载图片</button>
+                <button class="copy-btn" onclick="copyShareCard()">复制图片</button>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
