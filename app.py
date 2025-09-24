@@ -18,9 +18,13 @@ except:
 
 app = Flask(__name__)
 
-# 检测是否为Vercel环境
-VERCEL_ENV = os.getenv('VERCEL_ENV') or os.getenv('VERCEL') or os.getenv('NOW_REGION')
-IS_VERCEL = VERCEL_ENV is not None
+# 检测是否为Vercel或生产环境
+IS_VERCEL = (
+    os.getenv('VERCEL_ENV') is not None or
+    os.getenv('VERCEL') is not None or
+    os.getenv('NOW_REGION') is not None or
+    os.getenv('LAMBDA_TASK_ROOT') is not None
+)
 
 # AI服务配置
 if not IS_VERCEL:
@@ -28,15 +32,17 @@ if not IS_VERCEL:
         import dashscope
         api_key = os.getenv("DASHSCOPE_API_KEY")
         if api_key:
-            print(f"API Key loaded successfully: {api_key[:5]}...{api_key[-4:]}")
+            print(f"本地环境：API Key加载成功")
             dashscope.api_key = api_key
         else:
-            print("警告：未找到 DASHSCOPE_API_KEY 环境变量。")
+            print("警告：本地环境未找到API Key，切换到预设模式")
+            IS_VERCEL = True
     except ImportError:
-        print("警告：dashscope模块未安装，使用备用响应。")
+        print("dashscope未安装，使用预设响应模式")
         IS_VERCEL = True
-else:
-    print("检测到Vercel环境，使用预设响应模式。")
+
+if IS_VERCEL:
+    print("使用预设响应模式")
 
 
 @app.route('/')
