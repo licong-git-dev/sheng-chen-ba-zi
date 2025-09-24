@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-import dashscope
 from flask import Flask, request, render_template, Response, stream_with_context, jsonify
 from http import HTTPStatus
 import json
@@ -19,13 +18,25 @@ except:
 
 app = Flask(__name__)
 
-# --- 安全地从环境变量获取API Key ---
-api_key = os.getenv("DASHSCOPE_API_KEY")
-if api_key:
-    print(f"API Key loaded successfully: {api_key[:5]}...{api_key[-4:]}")
-    dashscope.api_key = api_key
+# 检测是否为Vercel环境
+VERCEL_ENV = os.getenv('VERCEL_ENV') or os.getenv('VERCEL') or os.getenv('NOW_REGION')
+IS_VERCEL = VERCEL_ENV is not None
+
+# AI服务配置
+if not IS_VERCEL:
+    try:
+        import dashscope
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+        if api_key:
+            print(f"API Key loaded successfully: {api_key[:5]}...{api_key[-4:]}")
+            dashscope.api_key = api_key
+        else:
+            print("警告：未找到 DASHSCOPE_API_KEY 环境变量。")
+    except ImportError:
+        print("警告：dashscope模块未安装，使用备用响应。")
+        IS_VERCEL = True
 else:
-    print("警告：未找到 DASHSCOPE_API_KEY 环境变量。")
+    print("检测到Vercel环境，使用预设响应模式。")
 
 
 @app.route('/')
@@ -33,7 +44,10 @@ def index():
     return render_template('index.html')
 
 def call_ai_with_retry(prompt, stream=False, max_retries=3):
-    """带重试机制的AI调用函数"""
+    """带重试机制的AI调用函数，Vercel环境使用预设响应"""
+    if IS_VERCEL:
+        # Vercel环境使用预设的高质量中文响应
+        return get_vercel_preset_response(prompt)
     for attempt in range(max_retries):
         try:
             if stream:
@@ -147,27 +161,46 @@ def evaluate():
 
     try:
         response = call_ai_with_retry(prompt, stream=False)
-        if response.status_code == HTTPStatus.OK:
+
+        # 统一处理响应文本获取
+        if isinstance(response, str):
+            # Vercel预设响应，直接是JSON字符串
+            raw_text = response
+        elif hasattr(response, 'status_code') and response.status_code == HTTPStatus.OK:
+            # dashscope API响应
             raw_text = response.output.text
-            # 找到第一个 '{' 和最后一个 '}' 来提取纯净的JSON字符串
-            start_index = raw_text.find('{')
-            end_index = raw_text.rfind('}')
-            
-            if start_index != -1 and end_index != -1 and start_index < end_index:
-                json_str = raw_text[start_index:end_index+1]
-                try:
-                    # 在返回前，先在后端验证一下它是不是一个合法的JSON
-                    json.loads(json_str)
-                    # 保存到缓存
-                    set_cache_result(cache_key, json_str)
-                    return Response(json_str, content_type='application/json')
-                except json.JSONDecodeError:
-                    return jsonify({'error': 'AI返回了格式错误的JSON，无法解析。'}), 500
-            else:
-                return jsonify({'error': 'AI响应中不包含有效的JSON内容。'}), 500
         else:
-            error_msg = f"API Error: Code: {response.code}, Message: {response.message}"
-            return jsonify({'error': error_msg}), 500
+            # 其他情况
+            raw_text = str(response)
+
+        # 处理JSON提取
+        start_index = raw_text.find('{')
+        end_index = raw_text.rfind('}')
+
+        if start_index != -1 and end_index != -1 and start_index < end_index:
+            json_str = raw_text[start_index:end_index+1]
+            try:
+                # 验证JSON格式
+                json.loads(json_str)
+                # 保存到缓存
+                set_cache_result(cache_key, json_str)
+                return Response(json_str, content_type='application/json')
+            except json.JSONDecodeError:
+                # 如果提取的不是有效JSON，尝试直接使用原始文本
+                try:
+                    json.loads(raw_text)
+                    set_cache_result(cache_key, raw_text)
+                    return Response(raw_text, content_type='application/json')
+                except:
+                    return jsonify({'error': 'AI返回了格式错误的JSON，无法解析。'}), 500
+        else:
+            # 没有找到JSON结构，尝试直接解析原始文本
+            try:
+                json.loads(raw_text)
+                set_cache_result(cache_key, raw_text)
+                return Response(raw_text, content_type='application/json')
+            except:
+                return jsonify({'error': 'AI响应中不包含有效的JSON内容。'}), 500
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -497,6 +530,89 @@ def add_to_ranking():
 
     except Exception as e:
         return jsonify({'error': f'添加失败: {str(e)}'}), 500
+
+def get_vercel_preset_response(prompt):
+    """Vercel环境的预设响应函数"""
+    import hashlib
+    import random
+
+    # 基于prompt生成稳定的随机种子
+    seed = int(hashlib.md5(prompt.encode()).hexdigest()[:8], 16)
+    random.seed(seed)
+
+    # 检测是否为数字评估请求
+    if "手机尾号" in prompt or "数字能量" in prompt:
+        # 提取数字
+        import re
+        numbers = re.findall(r'\d{4}', prompt)
+        if numbers:
+            number = numbers[0]
+            return generate_number_analysis(number)
+
+    # 检测是否为生辰分析请求
+    if "生辰八字" in prompt or "出生日期" in prompt:
+        return generate_fortune_analysis()
+
+    # 检测是否为姓名分析请求
+    if "姓名" in prompt:
+        return generate_name_analysis()
+
+    # 默认响应
+    return "感谢您使用红姐数字能量站！这是基于传统文化的趣味解读，仅供娱乐参考，请以科学理性的态度对待生活。"
+
+def generate_number_analysis(number):
+    """生成数字能量分析"""
+    analysis_templates = {
+        "1314": {
+            "homophonic_meaning": "'1314'谐音'一生一世'，堪称爱情的数字诗篇。在中文语境中，它象征着永恒的陪伴与不渝的承诺，常用于表白、婚恋场景，是情感长跑中的甜蜜密码。这个组合把浪漫刻进了数字基因，堪称移动的情书。",
+            "numerical_energy": "从数字能量学看，'1'代表开创与独立，如同晨曦初露，充满向上的生命力；'3'象征活力与表达，如春风拂面；'4'在此非指'死'，而是'稳'的化身，代表踏实与持久。三者共振，形成'进取—绽放—坚守'的能量闭环，寓意事业有成、感情稳定。",
+            "market_value": "由于其深入人心的情感寓意，1314在婚庆、情侣号、纪念日礼品市场备受欢迎。虽非极端稀有，但文化认同度极高，属于高流通性的吉祥号码，具备持续增值潜力。",
+            "fortune_impact": "持有此号者易吸引稳定关系与长久合作，尤其利于从事情感咨询、婚庆服务、文化创意等行业。在人际交往中自带亲和力光环，有助于建立信任与深度连接，是情感与事业双线发展的隐形助力。"
+        },
+        "8888": {
+            "homophonic_meaning": "'8888'四连发，谐音'发发发发'，是财富与成功的终极象征。在传统文化中，'8'形似无穷符号，寓意财源滚滚、生生不息。四个'8'的组合如同四方来财，预示着全方位的兴旺发达。",
+            "numerical_energy": "从数字能量学角度，'8'代表物质成就与权威地位，具有强烈的聚财磁场。四个'8'连续出现，形成超强的财富振频，有助于提升个人的商业敏感度和投资直觉，是天然的财富吸引器。",
+            "market_value": "8888作为顶级吉祥号码，在商界和收藏界享有极高声誉。无论是手机号、车牌还是门牌号，都是身份与财力的象征，具有极强的保值增值能力。",
+            "fortune_impact": "持有者往往在商业领域表现出色，容易获得贵人相助和投资机会。这个号码特别适合企业家、金融从业者和销售人员，能够增强个人的商业魅力和谈判能力。"
+        }
+    }
+
+    # 获取特定数字的分析，如果没有则生成通用分析
+    if number in analysis_templates:
+        return json.dumps(analysis_templates[number], ensure_ascii=False)
+    else:
+        # 生成通用分析
+        import random
+        random.seed(int(number))
+
+        meanings = [
+            "寓意吉祥如意，代表着美好的愿望和期待",
+            "象征着稳步前进，预示着事业的稳定发展",
+            "体现了和谐平衡，有助于人际关系的改善",
+            "代表着创新突破，预示着新的机遇和发展"
+        ]
+
+        energies = [
+            "从数字能量学看，这个组合具有正向的磁场效应",
+            "数字排列体现了阴阳平衡的和谐状态",
+            "蕴含着稳定而持续的能量波动",
+            "展现了积极向上的生命力量"
+        ]
+
+        return json.dumps({
+            "homophonic_meaning": f"'{number}'{random.choice(meanings)}，在传统文化中被视为吉祥的象征。",
+            "numerical_energy": random.choice(energies) + "，有助于提升个人的正能量磁场。",
+            "market_value": "这个数字组合在传统文化中具有一定的收藏价值，体现了对美好生活的向往。",
+            "fortune_impact": "持有者可能在相关领域获得更多的关注和机会，有助于个人发展和人际交往。"
+        }, ensure_ascii=False)
+
+def generate_fortune_analysis():
+    """生成生辰八字分析"""
+    return "根据传统文化的解读角度，您的生辰蕴含着独特的人生密码。从五行角度来看，您的命格中蕴含着平衡与和谐的特质，预示着稳定的人生发展。不过，这些都是传统文化的趣味解读，现代生活还是要靠自己的努力和奋斗！"
+
+def generate_name_analysis():
+    """生成姓名分析"""
+    return "从姓名文化学的角度来看，您的姓名字形优美，读音和谐，蕴含着深厚的文化底蕴。在传统文化中，这样的名字往往预示着文雅的气质和良好的人缘。当然，这只是传统文化的解读方式，真正的人生成就还是要靠个人的努力和品德！"
 
 # Vercel部署适配
 # 确保app实例可以被Vercel访问
